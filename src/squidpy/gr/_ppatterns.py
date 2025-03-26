@@ -276,12 +276,12 @@ def _score_helper(
 
 @njit(parallel=True, fastmath=True)
 def _occur_count(
-    spatial_x: NDArrayA, 
-    spatial_y:NDArrayA, 
-    thresholds: NDArrayA, 
-    label_idx: NDArrayA, 
-    n: int, 
-    k: int, 
+    spatial_x: NDArrayA,
+    spatial_y:NDArrayA,
+    thresholds: NDArrayA,
+    label_idx: NDArrayA,
+    n: int,
+    k: int,
     l_val: int
 )-> NDArrayA:
 
@@ -304,7 +304,7 @@ def _occur_count(
                 #    break  # If this threshold fails, smaller ones will also fail.
         for m in range(l_val * k * k):
             local_results[i, m] = local_counts[m]
-    
+
     # Reduce over all points: sum the local counts.
     result_flat = np.zeros(l_val * k * k, dtype=np.int32)
     for m in range(l_val * k * k):
@@ -319,7 +319,7 @@ def _occur_count(
         for i in range(k):
             for j in range(k):
                 counts[r, i, j] = result_flat[r * (k * k) + i * k + j]
-    
+
     # Rearrange axes to match the original convention: (k, k, interval)
     result = np.empty((k, k, l_val), dtype=np.int32)
     for i in range(k):
@@ -332,14 +332,14 @@ def _occur_count(
 
 
 def _co_occurrence_helper(
-    v_x: NDArrayA, 
-    v_y: NDArrayA, 
-    v_radium: NDArrayA, 
+    v_x: NDArrayA,
+    v_y: NDArrayA,
+    v_radium: NDArrayA,
     labs: NDArrayA
 )-> NDArrayA:
     """
     Fast co-occurrence probability computation using the new numba-accelerated counting.
-    
+
     Parameters
     ----------
     v_x : np.ndarray, float64
@@ -350,7 +350,7 @@ def _co_occurrence_helper(
          Distance thresholds (in ascending order).
     labs : np.ndarray
          Cluster labels (as integers).
-    
+
     Returns
     -------
     occ_prob : np.ndarray
@@ -365,35 +365,35 @@ def _co_occurrence_helper(
     l_val = len(v_radium) - 1
     # Compute squared thresholds from the interval (skip the first value)
     thresholds = (v_radium[1:]) ** 2
-    
+
     # Compute cco-occurence ounts.
     counts = _occur_count(v_x, v_y, thresholds, labs, n, k, l_val)
-    
+
     # Compute co-occurrence probabilities for each threshold bin.
     occ_prob = np.empty((k, k, l_val), dtype=np.float32)
     for r in range(l_val):
         co_occur = counts[:, :, r].astype(np.float32)
-        
+
         # Compute the total count for this threshold.
         total = 0.0
         for i in range(k):
             for j in range(k):
                 total += co_occur[i, j]
-        
+
         # Compute the normalized probability matrix.
         probs_matrix = np.zeros((k, k), dtype=np.float32)
         if total != 0.0:
             for i in range(k):
                 for j in range(k):
                     probs_matrix[i, j] = co_occur[i, j] / total
-        
+
         probs = np.zeros(k, dtype=np.float32)
         for j in range(k):
             s = 0.0
             for i in range(k):
                 s += probs_matrix[i, j]
             probs[j] = s
-        
+
         # Compute conditional probabilities.
         probs_con = np.zeros((k, k), dtype=np.float32)
         for c in range(k):
@@ -408,12 +408,12 @@ def _co_occurrence_helper(
                     probs_con[c, i] = 0.0
                 else:
                     probs_con[c, i] = cond / probs[i]
-        
+
         # Transpose to match (k, k, interval).
         for i in range(k):
             for c in range(k):
                 occ_prob[i, c, r] = probs_con[c, i]
-    
+
     return occ_prob
 
 def _co_occurrence_rs(
@@ -463,7 +463,7 @@ def _co_occurrence_rs(
         # print(interval_seq.shape[0] - 1 - i_interval)
         out[:, :, interval_seq.shape[0] - 1 - i_interval] = probs_con
 
-    return out, labs_unique
+    return out
 
 @d.dedent
 def co_occurrence(
@@ -527,7 +527,7 @@ def co_occurrence(
     original_clust = adata.obs[cluster_key]
     clust_map = {v: i for i, v in enumerate(original_clust.cat.categories.values)}
     labs = np.array([clust_map[c] for c in original_clust], dtype=ip)
-    
+
     # create intervals thresholds
     if isinstance(interval, int):
         thresh_min, thresh_max = _find_min_max(spatial)
